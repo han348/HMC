@@ -87,8 +87,8 @@
     opacity: 0.55;
     pointer-events: none;
   }
-  .glow.human   { background: var(--amber); left: -160px; top: -120px; }
-  .glow.machine { background: var(--cyan);  right: -160px; bottom: -120px; }
+  .glow.human   { background: var(--amber); left: -160px; top: -120px;    animation: floatHuman 12s ease-in-out infinite; }
+  .glow.machine { background: var(--cyan);  right: -160px; bottom: -120px; animation: floatMachine 14s ease-in-out infinite; }
 
   .cover-eyebrow {
     font-size: 14px;
@@ -98,6 +98,8 @@
     margin-bottom: 28px;
     position: relative;
     z-index: 2;
+    opacity: 0;
+    animation: coverIn 0.6s ease-out 0.1s forwards;
   }
   .cover-eyebrow .dot {
     display: inline-block;
@@ -106,8 +108,8 @@
     margin: 0 12px;
     vertical-align: middle;
   }
-  .cover-eyebrow .dot.h { background: var(--amber); }
-  .cover-eyebrow .dot.m { background: var(--cyan); }
+  .cover-eyebrow .dot.h { background: var(--amber); color: var(--amber); animation: dotPulse 1.4s ease-in-out infinite; }
+  .cover-eyebrow .dot.m { background: var(--cyan);  color: var(--cyan);  animation: dotPulse 1.4s ease-in-out 0.7s infinite; }
 
   .cover-title {
     font-size: 88px;
@@ -116,11 +118,15 @@
     letter-spacing: -0.02em;
     margin: 0;
     background: linear-gradient(120deg, var(--amber) 0%, #ffffff 50%, var(--cyan) 100%);
+    background-size: 200% 200%;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
     position: relative;
     z-index: 2;
+    opacity: 0;
+    animation: coverIn 0.6s ease-out 0.35s forwards,
+               titleShimmer 8s linear 0.95s infinite;
   }
   .cover-subtitle {
     margin-top: 28px;
@@ -129,6 +135,8 @@
     max-width: 720px;
     position: relative;
     z-index: 2;
+    opacity: 0;
+    animation: coverIn 0.6s ease-out 0.85s forwards;
   }
   .cover-press {
     position: absolute;
@@ -139,8 +147,10 @@
     font-size: 14px;
     color: var(--cyan);
     letter-spacing: 0.18em;
-    animation: blink 1s steps(2) infinite;
     z-index: 2;
+    opacity: 0;
+    animation: coverIn 0.6s ease-out 1.3s forwards,
+               blink 1.2s steps(2) 1.9s infinite;
   }
 
   /* ============ MENU ============ */
@@ -488,6 +498,26 @@
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
   }
+  @keyframes coverIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes titleShimmer {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  @keyframes floatHuman {
+    0%, 100% { transform: translate(0, 0);      opacity: 0.45; }
+    50%      { transform: translate(40px, 30px); opacity: 0.65; }
+  }
+  @keyframes floatMachine {
+    0%, 100% { transform: translate(0, 0);        opacity: 0.45; }
+    50%      { transform: translate(-30px, -40px); opacity: 0.65; }
+  }
+  @keyframes dotPulse {
+    0%, 100% { transform: scale(1);   box-shadow: 0 0 4px transparent; }
+    50%      { transform: scale(1.5); box-shadow: 0 0 14px currentColor; }
+  }
 </style>
 </head>
 <body>
@@ -680,6 +710,18 @@
     screens[name].classList.add('active');
     currentScreen = name;
     setHint(name);
+    if (name === 'cover') replayCoverIntro();
+  }
+
+  function replayCoverIntro() {
+    const els = screens.cover.querySelectorAll(
+      '.cover-eyebrow, .cover-title, .cover-subtitle, .cover-press'
+    );
+    els.forEach(el => {
+      el.style.animation = 'none';
+      void el.offsetWidth;
+      el.style.animation = '';
+    });
   }
 
   function applyFocus() {
