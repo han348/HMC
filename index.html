@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1024, initial-scale=1, user-scalable=no" />
+<title>人機協作 · Human–Machine Collaboration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;500;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-2: #0f1424;
+    --fg: #e6ecff;
+    --fg-dim: #8a93b3;
+    --cyan: #22d3ee;   /* machine */
+    --amber: #fbbf24;  /* human */
+    --line: rgba(255,255,255,0.06);
+    --pixel: "Press Start 2P", "Inter", monospace;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Inter", "Noto Sans TC", system-ui, sans-serif;
+    font-weight: 300;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #app {
+    position: relative;
+    z-index: 1;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .screen {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 64px 72px;
+    box-sizing: border-box;
+    display: none;
+    opacity: 0;
+    transition: opacity 250ms ease;
+  }
+  .screen.active {
+    display: flex;
+    opacity: 1;
+  }
+
+  /* ============ COVER ============ */
+  #cover {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    overflow: hidden;
+  }
+  .glow {
+    position: absolute;
+    width: 520px;
+    height: 520px;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  .glow.human   { background: var(--amber); left: -160px; top: -120px; }
+  .glow.machine { background: var(--cyan);  right: -160px; bottom: -120px; }
+
+  .cover-eyebrow {
+    font-size: 14px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin-bottom: 28px;
+    position: relative;
+    z-index: 2;
+  }
+  .cover-eyebrow .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin: 0 12px;
+    vertical-align: middle;
+  }
+  .cover-eyebrow .dot.h { background: var(--amber); }
+  .cover-eyebrow .dot.m { background: var(--cyan); }
+
+  .cover-title {
+    font-size: 88px;
+    line-height: 1.05;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin: 0;
+    background: linear-gradient(120deg, var(--amber) 0%, #ffffff 50%, var(--cyan) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    position: relative;
+    z-index: 2;
+  }
+  .cover-subtitle {
+    margin-top: 28px;
+    font-size: 22px;
+    color: var(--fg-dim);
+    max-width: 720px;
+    position: relative;
+    z-index: 2;
+  }
+  .cover-press {
+    position: absolute;
+    bottom: 96px;
+    left: 0; right: 0;
+    text-align: center;
+    font-family: var(--pixel);
+    font-size: 14px;
+    color: var(--cyan);
+    letter-spacing: 0.18em;
+    animation: blink 1s steps(2) infinite;
+    z-index: 2;
+  }
+
+  /* ============ MENU ============ */
+  #menu {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+  .menu-title {
+    font-family: var(--pixel);
+    font-size: 18px;
+    color: var(--fg-dim);
+    letter-spacing: 0.2em;
+    margin-bottom: 48px;
+  }
+  .menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 220px);
+    grid-gap: 28px;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 36px;
+  }
+  .menu-item {
+    position: relative;
+    width: 220px;
+    height: 180px;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 120ms, box-shadow 120ms, transform 120ms;
+  }
+  .menu-item .emoji {
+    font-size: 72px;
+    line-height: 1;
+    filter: grayscale(0.3) brightness(0.85);
+    transition: filter 150ms;
+  }
+  .menu-item .label {
+    margin-top: 14px;
+    font-family: var(--pixel);
+    font-size: 10px;
+    color: var(--fg-dim);
+    letter-spacing: 0.18em;
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+  .menu-item .arrow {
+    position: absolute;
+    top: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--pixel);
+    font-size: 14px;
+    color: var(--cyan);
+    opacity: 0;
+  }
+  .menu-item.focused {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 2px var(--cyan), 0 0 32px rgba(34, 211, 238, 0.45);
+  }
+  .menu-item.focused .emoji {
+    filter: none;
+    animation: bounce 0.6s steps(2) infinite;
+  }
+  .menu-item.focused .label {
+    opacity: 1;
+    color: var(--cyan);
+  }
+  .menu-item.focused .arrow {
+    opacity: 1;
+    animation: blink 1s steps(2) infinite;
+  }
+
+  .menu-back {
+    margin-top: 8px;
+    position: relative;
+    padding: 12px 28px;
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--fg-dim);
+    font-family: var(--pixel);
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    cursor: pointer;
+    transition: border-color 120ms, box-shadow 120ms, color 120ms;
+  }
+  .menu-back .arrow {
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: var(--pixel);
+    font-size: 12px;
+    color: var(--amber);
+    opacity: 0;
+  }
+  .menu-back.focused {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 2px var(--amber), 0 0 28px rgba(251, 191, 36, 0.4);
+    color: var(--amber);
+    animation: blink 1.2s steps(2) infinite;
+  }
+  .menu-back.focused .arrow {
+    opacity: 1;
+    animation: blink 1s steps(2) infinite;
+  }
+
+  /* ============ DETAIL COMMON ============ */
+  .detail {
+    flex-direction: column;
+  }
+  .detail-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--pixel);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    padding: 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    align-self: flex-start;
+  }
+  .detail-chip::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 12px var(--cyan);
+  }
+  .detail-heading {
+    margin: 20px 0 36px;
+    font-size: 52px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+  }
+
+  /* Demo 1 — Two-Col */
+  .layout-twocol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    flex: 1;
+  }
+  .col {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    display: flex;
+    flex-direction: column;
+  }
+  .col-label {
+    font-family: var(--pixel);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .col.human   .col-label { color: var(--amber); }
+  .col.machine .col-label { color: var(--cyan); }
+  .col-title {
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0 0 16px;
+  }
+  .col-body {
+    color: var(--fg-dim);
+    font-size: 16px;
+    line-height: 1.7;
+    flex: 1;
+  }
+
+  /* Demo 2 — Stack */
+  .layout-stack {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 32px;
+  }
+  .stack-hero {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    padding: 28px 32px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(34,211,238,0.06), transparent);
+  }
+  .stack-hero .big-emoji {
+    font-size: 96px;
+    line-height: 1;
+  }
+  .stack-hero .hero-text {
+    font-size: 20px;
+    color: var(--fg-dim);
+    line-height: 1.6;
+  }
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    flex: 1;
+  }
+  .stack-cell {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 22px;
+    background: rgba(255,255,255,0.02);
+  }
+  .stack-cell h4 {
+    margin: 0 0 10px;
+    font-family: var(--pixel);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--cyan);
+  }
+  .stack-cell p {
+    margin: 0;
+    color: var(--fg-dim);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* Demo 3 — Hero Center */
+  .layout-hero {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 32px;
+    align-items: center;
+    flex: 1;
+  }
+  .hero-side {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+  }
+  .hero-side h4 {
+    margin: 0 0 12px;
+    font-family: var(--pixel);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    color: var(--amber);
+  }
+  .hero-side.right h4 { color: var(--cyan); }
+  .hero-side p {
+    margin: 0;
+    color: var(--fg-dim);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+  .hero-stage {
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    border: 4px solid var(--cyan);
+    box-shadow:
+      0 0 0 8px rgba(34,211,238,0.08),
+      0 0 60px rgba(34,211,238,0.35),
+      inset 0 0 40px rgba(34,211,238,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, rgba(34,211,238,0.1), transparent 70%);
+  }
+  .hero-stage .big-emoji {
+    font-size: 140px;
+    line-height: 1;
+    animation: bounce 1.2s steps(2) infinite;
+  }
+
+  /* Demo 4 — 2x2 Grid */
+  .layout-quad {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 24px;
+    flex: 1;
+  }
+  .quad-card {
+    position: relative;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 26px 28px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+    display: flex;
+    flex-direction: column;
+  }
+  .quad-card .num {
+    font-family: var(--pixel);
+    font-size: 22px;
+    color: var(--amber);
+    margin-bottom: 14px;
+  }
+  .quad-card h4 {
+    margin: 0 0 12px;
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .quad-card p {
+    margin: 0;
+    color: var(--fg-dim);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ============ HINT ============ */
+  .hint {
+    position: fixed;
+    bottom: 18px; right: 22px;
+    z-index: 10;
+    font-family: var(--pixel);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--fg-dim);
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+  .hint kbd {
+    font-family: inherit;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 2px 6px;
+    margin: 0 2px;
+    color: var(--fg);
+  }
+
+  /* ============ KEYFRAMES ============ */
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ COVER ============ -->
+  <section id="cover" class="screen active" data-screen="cover">
+    <div class="glow human"></div>
+    <div class="glow machine"></div>
+
+    <div class="cover-eyebrow">
+      Human <span class="dot h"></span>+<span class="dot m"></span> Machine
+    </div>
+
+    <h1 class="cover-title">人機協作</h1>
+    <p class="cover-subtitle">Human–Machine Collaboration</p>
+
+    <div class="cover-press">▶ PRESS ENTER</div>
+  </section>
+
+  <!-- ============ MENU ============ -->
+  <section id="menu" class="screen" data-screen="menu">
+    <div class="menu-title">SELECT A DEMO</div>
+    <ul class="menu-grid" id="menuGrid">
+      <li class="menu-item" data-target="demo1" data-name="DEMO 1">
+        <span class="arrow">▼</span>
+        <span class="emoji">🤖</span>
+        <span class="label">DEMO 1</span>
+      </li>
+      <li class="menu-item" data-target="demo2" data-name="DEMO 2">
+        <span class="arrow">▼</span>
+        <span class="emoji">👷</span>
+        <span class="label">DEMO 2</span>
+      </li>
+      <li class="menu-item" data-target="demo3" data-name="DEMO 3">
+        <span class="arrow">▼</span>
+        <span class="emoji">🔬</span>
+        <span class="label">DEMO 3</span>
+      </li>
+      <li class="menu-item" data-target="demo4" data-name="DEMO 4">
+        <span class="arrow">▼</span>
+        <span class="emoji">🎨</span>
+        <span class="label">DEMO 4</span>
+      </li>
+    </ul>
+    <button class="menu-back" id="menuBack" data-target="cover">
+      <span class="arrow">▼</span>
+      ↩ BACK TO COVER
+    </button>
+  </section>
+
+  <!-- ============ DEMO 1 — Two-Col ============ -->
+  <section id="demo1" class="screen detail" data-screen="demo1">
+    <div class="detail-chip">Demo 01 · Two-Column</div>
+    <h2 class="detail-heading">🤖 Demo 1 標題佔位</h2>
+    <div class="layout-twocol">
+      <div class="col human">
+        <div class="col-label">Human · 人類視角</div>
+        <h3 class="col-title">左欄標題佔位</h3>
+        <div class="col-body">這裡是人類視角的內容佔位。之後再補上實際的描述、論點、案例與引述。</div>
+      </div>
+      <div class="col machine">
+        <div class="col-label">Machine · 機器視角</div>
+        <h3 class="col-title">右欄標題佔位</h3>
+        <div class="col-body">這裡是機器視角的內容佔位。之後再補上模型行為、限制、最佳實踐與量化指標。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 2 — Stack ============ -->
+  <section id="demo2" class="screen detail" data-screen="demo2">
+    <div class="detail-chip">Demo 02 · Stack</div>
+    <h2 class="detail-heading">👷 Demo 2 標題佔位</h2>
+    <div class="layout-stack">
+      <div class="stack-hero">
+        <div class="big-emoji">👷</div>
+        <div class="hero-text">這是上半部 hero 區的佔位文字。可以放本頁的核心命題、一句話總結或關鍵問題。</div>
+      </div>
+      <div class="stack-grid">
+        <div class="stack-cell">
+          <h4>POINT 01</h4>
+          <p>第一段重點佔位文字。</p>
+        </div>
+        <div class="stack-cell">
+          <h4>POINT 02</h4>
+          <p>第二段重點佔位文字。</p>
+        </div>
+        <div class="stack-cell">
+          <h4>POINT 03</h4>
+          <p>第三段重點佔位文字。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 3 — Hero Center ============ -->
+  <section id="demo3" class="screen detail" data-screen="demo3">
+    <div class="detail-chip">Demo 03 · Hero Center</div>
+    <h2 class="detail-heading">🔬 Demo 3 標題佔位</h2>
+    <div class="layout-hero">
+      <div class="hero-side left">
+        <h4>LEFT · 背景</h4>
+        <p>左側輔助卡片佔位文字。介紹背景、動機或前情提要。</p>
+      </div>
+      <div class="hero-stage">
+        <div class="big-emoji">🔬</div>
+      </div>
+      <div class="hero-side right">
+        <h4>RIGHT · 結論</h4>
+        <p>右側輔助卡片佔位文字。給出觀察、結論或下一步行動。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DEMO 4 — 2x2 Grid ============ -->
+  <section id="demo4" class="screen detail" data-screen="demo4">
+    <div class="detail-chip">Demo 04 · Grid</div>
+    <h2 class="detail-heading">🎨 Demo 4 標題佔位</h2>
+    <div class="layout-quad">
+      <div class="quad-card">
+        <div class="num">01</div>
+        <h4>子卡片一</h4>
+        <p>第一張卡片的佔位描述文字。</p>
+      </div>
+      <div class="quad-card">
+        <div class="num">02</div>
+        <h4>子卡片二</h4>
+        <p>第二張卡片的佔位描述文字。</p>
+      </div>
+      <div class="quad-card">
+        <div class="num">03</div>
+        <h4>子卡片三</h4>
+        <p>第三張卡片的佔位描述文字。</p>
+      </div>
+      <div class="quad-card">
+        <div class="num">04</div>
+        <h4>子卡片四</h4>
+        <p>第四張卡片的佔位描述文字。</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="hint" id="hint"></div>
+
+<script>
+(function () {
+  const screens = {
+    cover: document.getElementById('cover'),
+    menu: document.getElementById('menu'),
+    demo1: document.getElementById('demo1'),
+    demo2: document.getElementById('demo2'),
+    demo3: document.getElementById('demo3'),
+    demo4: document.getElementById('demo4'),
+  };
+
+  const items = Array.from(document.querySelectorAll('.menu-item'));
+  const backBtn = document.getElementById('menuBack');
+  const focusables = [...items, backBtn]; // indices 0-3 chars, 4 back
+  const hintEl = document.getElementById('hint');
+
+  // Direction lookup: index -> { ArrowLeft, ArrowRight, ArrowUp, ArrowDown }
+  const moveMap = {
+    0: { ArrowRight: 1, ArrowDown: 2 },
+    1: { ArrowLeft: 0, ArrowDown: 3 },
+    2: { ArrowRight: 3, ArrowUp: 0, ArrowDown: 4 },
+    3: { ArrowLeft: 2, ArrowUp: 1, ArrowDown: 4 },
+    4: { ArrowUp: 'last' }, // resolved to lastCharIndex
+  };
+
+  const HINTS = {
+    cover: '<kbd>ENTER</kbd> START',
+    menu: '<kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> MOVE &nbsp;·&nbsp; <kbd>ENTER</kbd> SELECT &nbsp;·&nbsp; <kbd>ESC</kbd> BACK',
+    detail: '<kbd>ESC</kbd> BACK TO MENU',
+  };
+
+  let currentScreen = 'cover';
+  let focusIndex = 0;
+  let lastCharIndex = 0; // remember last character focus when on back button
+
+  function setHint(name) {
+    const isDetail = name.startsWith('demo');
+    hintEl.innerHTML = isDetail ? HINTS.detail : HINTS[name];
+  }
+
+  function showScreen(name) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[name].classList.add('active');
+    currentScreen = name;
+    setHint(name);
+  }
+
+  function applyFocus() {
+    focusables.forEach((el, i) => el.classList.toggle('focused', i === focusIndex));
+  }
+
+  function gotoMenu(initialIndex) {
+    focusIndex = initialIndex;
+    if (initialIndex < 4) lastCharIndex = initialIndex;
+    showScreen('menu');
+    applyFocus();
+  }
+
+  function activate() {
+    const el = focusables[focusIndex];
+    const target = el.dataset.target;
+    if (target === 'cover') {
+      showScreen('cover');
+    } else {
+      // entering a demo; remember which character we came from
+      lastCharIndex = focusIndex;
+      showScreen(target);
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (currentScreen === 'cover') {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        gotoMenu(lastCharIndex);
+      }
+      return;
+    }
+
+    if (currentScreen === 'menu') {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        activate();
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        showScreen('cover');
+        return;
+      }
+      if (e.key.startsWith('Arrow')) {
+        const moves = moveMap[focusIndex];
+        if (moves && moves[e.key] !== undefined) {
+          e.preventDefault();
+          const next = moves[e.key];
+          focusIndex = next === 'last' ? lastCharIndex : next;
+          if (focusIndex < 4) lastCharIndex = focusIndex;
+          applyFocus();
+        }
+      }
+      return;
+    }
+
+    // detail screens
+    if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'Enter') {
+      e.preventDefault();
+      gotoMenu(lastCharIndex);
+    }
+  });
+
+  // Click support: menu items + back button
+  focusables.forEach((el, i) => {
+    el.addEventListener('click', () => {
+      focusIndex = i;
+      if (i < 4) lastCharIndex = i;
+      applyFocus();
+      activate();
+    });
+    el.addEventListener('mouseenter', () => {
+      if (currentScreen !== 'menu') return;
+      focusIndex = i;
+      applyFocus();
+    });
+  });
+
+  // Initial state
+  setHint('cover');
+})();
+</script>
+</body>
+</html>
